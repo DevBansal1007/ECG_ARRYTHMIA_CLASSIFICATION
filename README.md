@@ -111,6 +111,9 @@ This repository (Phase 1) successfully prepares the data. The next phase of the 
 - **Data:** MIT-BIH Arrhythmia Database (PhysioNet)
 
 ---
+## Workflow Architecture
+
+For a detailed visual representation of the preprocessing pipeline, see the [Workflow Diagram](docs/workflow_diagram.md).
 
 ## License
 
