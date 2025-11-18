@@ -75,12 +75,9 @@ This will:
 
 ## 5. Detailed Report
 
-A full, interactive HTML report describing the entire workflow, comparing the three feature extraction methods, and visualizing the data is available.
+   A full, interactive HTML report describing the entire workflow, comparing the three feature extraction methods, and visualizing the data is available.
 
-**Open this file in your browser:**
-```
-docs/report.html
-```
+   **View the live report here:** [ECG Preprocessing Report](https://your-username.github.io/ecg-arrhythmia-classifier/report.html)
 
 ---
 
