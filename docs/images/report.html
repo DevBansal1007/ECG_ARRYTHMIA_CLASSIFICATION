@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECG Preprocessing Report</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f8f9fa;
+            color: #212529;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 25px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        h1, h2, h3 {
+            color: #343a40;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 5px;
+        }
+        h1 {
+            text-align: center;
+            color: #0056b3;
+            border-bottom: none;
+        }
+        h2 {
+            margin-top: 40px;
+        }
+        h3 {
+            font-size: 1.1em;
+            color: #495057;
+            border-bottom: 1px dashed #ced4da;
+            margin-top: 25px;
+        }
+        p, li {
+            font-size: 16px;
+        }
+        .step {
+            margin-bottom: 30px;
+        }
+        .method-box {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background-color: #fff;
+        }
+        .method-box h3 {
+            margin-top: 0;
+            color: #007bff;
+            border: none;
+        }
+        .method-box-content {
+            flex-grow: 1; /* Make content grow to fill space */
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #dee2e6;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f1f3f5;
+        }
+        .best-for {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        /* Styles for Code, Output, and Plot Placeholders */
+        pre {
+            background-color: #f1f3f5;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+            overflow-x: auto;
+            white-space: pre-wrap; /* Allows text to wrap */
+            word-wrap: break-word;
+            font-family: "Courier New", Courier, monospace;
+        }
+        pre.code-box {
+            background-color: #2b3035;
+            color: #f8f8f2;
+            white-space: pre; /* Keep code formatting */
+        }
+        pre.output-box {
+            background-color: #fdf6e3;
+            color: #657b83;
+        }
+        
+        /* This is the new style for your plots */
+        .plot-container {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            text-align: center;
+        }
+        .plot-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+        .plot-container p {
+            font-style: italic;
+            color: #6c757d;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ECG Heartbeat Preprocessing & Feature Extraction Report</h1>
+        
+        <!-- ====================================================== -->
+        <!-- STEP 1: LOADING -->
+        <!-- ====================================================== -->
+        <div class="step" id="step1">
+            <h2>Step 1: Data Loading & Preparation</h2>
+            <p>We begin by loading a single patient record (Record '100') from the MIT-BIH Arrhythmia Database. We load the signal data ('MLII' channel) and the expert-provided annotations ('atr').</p>
+
+            <h3>📋 Code (Cell 1 & 2)</h3>
+            <pre class="code-box"><code># Install required libraries
+!pip install wfdb pywt scipy numpy matplotlib pandas
+
+# Import libraries
+import wfdb
+import numpy as np
+import matplotlib.pyplot as plt
+import pywt
+from scipy import signal
+import os
+
+# Download single record (100) from MIT-BIH database
+record_name = '100'
+record = wfdb.rdrecord(record_name, pn_dir='mitdb')
+annotation = wfdb.rdann(record_name, 'atr', pn_dir='mitdb')
+
+print(f"✓ Record {record_name} downloaded successfully")
+print(f"  Sampling Frequency: {record.fs} Hz")
+print(f"  Signal Length: {record.sig_len} samples")
+print(f"  Duration: {record.sig_len / record.fs / 60:.2f} minutes")
+print(f"  Channels: {record.sig_name}")
+print(f"  Total Annotations: {len(annotation.sample)} beats")
+
+# Extract MLII signal (channel 0)
+signal_data = record.p_signal[:, 0]  # MLII lead
+fs = record.fs  # 360 Hz
+
+# Extract R-peak locations and beat types
+r_peaks = annotation.sample
+beat_types = annotation.symbol
+
+print(f"✓ Signal extracted")
+print(f"  Signal shape: {signal_data.shape}")
+print(f"  Number of R-peaks detected: {len(r_peaks)}")
+print(f"  Beat types found: {set(beat_types)}")
+
+# Visualize raw signal with R-peaks
+plt.figure(figsize=(15, 4))
+time_axis = np.arange(len(signal_data)) / fs
+plt.plot(time_axis[:3600], signal_data[:3600], 'b-', linewidth=0.5, label='ECG Signal')
+r_peaks_in_window = r_peaks[r_peaks < 3600]
+plt.plot(r_peaks_in_window / fs, signal_data[r_peaks_in_window], 'r*', 
+         markersize=10, label='R-peaks')
+plt.xlabel('Time (seconds)')
+plt.ylabel('Amplitude (mV)')
+plt.title('Raw ECG Signal with R-peak Annotations (First 10 seconds)')
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
+
+# IMPORTANT: Save your plot to a file
+# plt.savefig('plot_step1_raw_signal.png')
+</code></pre>
+
+            <h3>🖨️ Output</h3>
+            <pre class="output-box">✓ Record 100 downloaded successfully
+  Sampling Frequency: 360 Hz
+  Signal Length: 650000 samples
+  Duration: 30.09 minutes
+  Channels: ['MLII', 'V5']
+  Total Annotations: 2274 beats
+
+  ✓ Signal extracted
+  Signal shape: (650000,)
+  Number of R-peaks detected: 2274
+  Beat types found: {'+', 'A', 'N', 'V'}
+</pre>
+
+            <h3>🖼️ Plot (Step 1)</h3>
+            <div class="plot-container">
+                <img src="raw_signals.png" alt="Raw ECG Signal Plot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <p style="display:none; color: #6c757d;">plot_step1_raw_signal.png (not found)</p>
+            </div>
+        </div>
+
+        <!-- ====================================================== -->
+        <!-- STEP 2: SEGMENTATION -->
+        <!-- ====================================================== -->
+        <div class="step" id="step2">
+            <h2>Step 2: Beat Segmentation ("Cookie Cutter")</h2>
+            <p>We "cut" the continuous signal into individual clips. We filter for only 'N' (Normal) beats and create a 600ms window (216 samples) around each R-peak.</p>
+
+            <h3>📋 Code (Cell 3 & 4)</h3>
+            <pre class="code-box"><code># Filter only Normal beats (symbol 'N')
+normal_indices = [i for i, symbol in enumerate(beat_types) if symbol == 'N']
+normal_r_peaks = r_peaks[normal_indices]
+
+print(f"✓ Filtering complete")
+print(f"  Total beats: {len(r_peaks)}")
+print(f"  Normal beats: {len(normal_r_peaks)}")
+print(f"  Percentage: {len(normal_r_peaks)/len(r_peaks)*100:.1f}%")
+
+# Remove edge beats (first and last to avoid boundary issues)
+normal_r_peaks = normal_r_peaks[1:-1]
+print(f"  Beats after removing edges: {len(normal_r_peaks)}")
+
+# Define segmentation window
+before_r = int(0.2 * fs)  # 200ms before R-peak (72 samples)
+after_r = int(0.4 * fs)   # 400ms after R-peak (144 samples)
+segment_length = before_r + after_r  # 216 samples total
+
+# Extract all valid segments
+segments = []
+valid_r_peaks = []
+
+for r_peak in normal_r_peaks:
+    start = r_peak - before_r
+    end = r_peak + after_r
+    
+    # Check boundaries
+    if start >= 0 and end < len(signal_data):
+        segment = signal_data[start:end]
+        if len(segment) == segment_length:
+            segments.append(segment)
+            valid_r_peaks.append(r_peak)
+
+segments = np.array(segments)
+print(f"✓ Segmentation complete")
+print(f"  Segments extracted: {len(segments)}")
+print(f"  Segment shape: {segments.shape}")
+print(f"  Each segment: {segment_length} samples ({segment_length/fs*1000:.1f} ms)")
+
+# Visualize first 5 segments
+plt.figure(figsize=(15, 8))
+time_segment = (np.arange(segment_length) - before_r) / fs * 1000  # in ms
+
+for i in range(min(5, len(segments))):
+    plt.subplot(5, 1, i+1)
+    plt.plot(time_segment, segments[i], 'b-', linewidth=1.5)
+    plt.axvline(x=0, color='r', linestyle='--', alpha=0.5, label='R-peak')
+    plt.ylabel(f'Beat {i+1}')
+    plt.grid(True, alpha=0.3)
+    if i == 0:
+        plt.legend()
+    if i == 4:
+        plt.xlabel('Time relative to R-peak (ms)')
+
+plt.suptitle('First 5 Segmented Heartbeats', fontsize=14, fontweight='bold')
+plt.tight_layout()
+plt.show()
+</code></pre>
+
+            <h3>🖨️ Output</h3>
+            <pre class="output-box">✓ Filtering complete
+  Total beats: 2274
+  Normal beats: 2239
+  Percentage: 98.5%
+  Beats after removing edges: 2237
+  ✓ Segmentation complete
+  Segments extracted: 2237
+  Segment shape: (2237, 216)
+  Each segment: 216 samples (600.0 ms)
+</pre>
+
+            <h3>🖼️ Plot (Step 2)</h3>
+            <div class="plot-container">
+                <img src="firsrfivebeats.png" alt="Segmented Beats Plot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                 <p style="display:none; color: #6c757d;">plot_step2_segmented_beats.png (not found)</p>
+            </div>
+        </div>
+
+        <!-- ====================================================== -->
+        <!-- STEP 3: FEATURE EXTRACTION -->
+        <!-- ====================================================== -->
+        <div class="step" id="step3">
+            <h2>Step 3: Feature Extraction (Transforming Signals to Values)</h2>
+            <p>We now have our <code>(2237, 216)</code> data. A model needs numerical features. Here are three common methods.</p>
+
+            <!-- METHOD 1 -->
+            <div class="method-box">
+                <div class="method-box-content">
+                    <h3>Method 1: Raw Waveform (Resampled)</h3>
+                    <p><b>What it is:</b> This method assumes the <i>shape itself</i> is the feature. We simply resize (resample) each 216-sample beat to a standard length (360 samples).</p>
+                    <p class="best-for"><b>Best For: Deep Learning (CNNs and LSTMs).</b></p>
+                    
+                    <h4>📋 Code (Cell 5)</h4>
+                    <pre class="code-box"><code>## Resample each segment to exactly 360 samples
+from scipy.interpolate import interp1d
+
+def resample_segment(segment, target_length=360):
+    original_length = len(segment)
+    x_original = np.linspace(0, 1, original_length)
+    x_target = np.linspace(0, 1, target_length)
+    interpolator = interp1d(x_original, segment, kind='linear')
+    return interpolator(x_target)
+
+# Apply to all segments
+method1_features = np.array([resample_segment(seg, 360) for seg in segments])
+
+print("="*60)
+print("METHOD 1: RAW WAVEFORM SEGMENTATION")
+print("="*60)
+print(f"✓ Conversion complete")
+print(f"  Input:  {segments.shape[0]} segments × {segments.shape[1]} samples")
+print(f"  Output: {method1_features.shape[0]} segments × {method1_features.shape[1]} values")
+print(f"  Feature vector per beat: {method1_features.shape[1]} raw voltage values")
+
+# Show BEFORE and AFTER for one beat
+beat_idx = 0
+fig, axes = plt.subplots(1, 2, figsize=(15, 4))
+
+# BEFORE: Original segment
+axes[0].plot(segments[beat_idx], 'b-', linewidth=2)
+axes[0].axvline(x=before_r, color='r', linestyle='--', alpha=0.5)
+axes[0].set_title(f'BEFORE: Original Segment ({len(segments[beat_idx])} samples)', 
+                    fontweight='bold')
+axes[0].set_xlabel('Sample Index')
+axes[0].set_ylabel('Amplitude (mV)')
+axes[0].grid(True, alpha=0.3)
+
+# AFTER: Resampled to 360
+axes[1].plot(method1_features[beat_idx], 'g-', linewidth=2)
+axes[1].axvline(x=180, color='r', linestyle='--', alpha=0.5)
+axes[1].set_title(f'AFTER: Resampled ({len(method1_features[beat_idx])} samples)', 
+                    fontweight='bold')
+axes[1].set_xlabel('Sample Index')
+axes[1].set_ylabel('Amplitude (mV)')
+axes[1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+print(f"\n📊 Example: Beat #{beat_idx+1}")
+print(f"  Original values (first 10): {segments[beat_idx][:10]}")
+print(f"  Resampled values (first 10): {method1_features[beat_idx][:10]}")
+</code></pre>
+
+                    <h4>🖨️ Output</h4>
+                    <pre class="output-box">Example: Beat #1
+  Original values (first 10): [-0.27  -0.275 -0.275 -0.27  -0.25  -0.25  -0.255 -0.225 -0.22  -0.205]
+  Resampled values (first 10): [-0.27       -0.27299443 -0.275      -0.275      -0.27302228 -0.27002786
+ -0.2581337  -0.25       -0.25       -0.25194986]
+</pre>
+                    
+                    <h4>🖼️ Plot (Method 1)</h4>
+                    <div class="plot-container">
+                        <img src="method1.png" alt="Resampled Beat Plot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <p style="display:none; color: #6c757d;">plot_step3_method1_resample.png (not found)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- METHOD 2 -->
+            <div class="method-box">
+                <div class="method-box-content">
+                    <h3>Method 2: Handcrafted Features</h3>
+                    <p><b>What it is:</b> We extract a few "handcrafted" values that are known to be important for cardiology, like timing (RR-intervals) and amplitude.</p>
+                    <p class="best-for"><b>Best For: Simple ML models</b> and for <b>solving the N-vs-S problem</b>.</p>
+
+                    <h4>📋 Code (Cell 6)</h4>
+                    <pre class="code-box"><code># Calculate RR-intervals and R-peak amplitudes
+def extract_handcrafted_features(r_peaks, signal_data, fs):
+    features = []
+    
+    for i in range(1, len(r_peaks) - 1):
+        # Pre-RR interval (time between previous and current beat)
+        pre_rr = (r_peaks[i] - r_peaks[i-1]) / fs * 1000  # in ms
+        
+        # Post-RR interval (time between current and next beat)
+        post_rr = (r_peaks[i+1] - r_peaks[i]) / fs * 1000  # in ms
+        
+        # R-peak amplitude
+        r_amplitude = signal_data[r_peaks[i]]
+        
+        features.append([pre_rr, post_rr, r_amplitude])
+    
+    return np.array(features)
+
+method2_features = extract_handcrafted_features(valid_r_peaks, signal_data, fs)
+
+print("="*60)
+print("METHOD 2: HANDCRAFTED FEATURES (MORPHOLOGICAL + TEMPORAL)")
+print("="*60)
+print(f"✓ Conversion complete")
+print(f"  Input:  {len(segments)} raw signal segments")
+print(f"  Output: {method2_features.shape[0]} segments × {method2_features.shape[1]} features")
+print(f"  Features: [Pre-RR (ms), Post-RR (ms), R-amplitude (mV)]")
+
+# Show BEFORE and AFTER
+beat_idx = 10
+fig, axes = plt.subplots(1, 2, figsize=(15, 4))
+
+# BEFORE: Raw signal segment
+axes[0].plot(segments[beat_idx], 'b-', linewidth=2)
+axes[0].axvline(x=before_r, color='r', linestyle='--', alpha=0.5, label='R-peak')
+axes[0].set_title('BEFORE: Raw Signal Segment', fontweight='bold')
+axes[0].set_xlabel('Sample Index')
+axes[0].set_ylabel('Amplitude (mV)')
+axes[0].legend()
+axes[0].grid(True, alpha=0.3)
+
+# AFTER: 3 extracted features
+features = method2_features[beat_idx]
+feature_names = ['Pre-RR\nInterval\n(ms)', 'Post-RR\nInterval\n(ms)', 
+                    'R-peak\nAmplitude\n(mV)']
+colors = ['#FF6B6B', '#4ECDC4', '#45B7D1']
+axes[1].bar(feature_names, features, color=colors, alpha=0.7, edgecolor='black', linewidth=2)
+axes[1].set_title('AFTER: Extracted Features (3 values)', fontweight='bold')
+axes[1].set_ylabel('Value')
+axes[1].grid(True, alpha=0.3, axis='y')
+
+for i, (name, val) in enumerate(zip(feature_names, features)):
+    axes[1].text(i, val + max(features)*0.02, f'{val:.2f}', 
+                ha='center', fontweight='bold')
+
+plt.tight_layout()
+plt.show()
+
+print(f"\n📊 Example: Beat #{beat_idx+1}")
+print(f"  Pre-RR interval:  {features[0]:.2f} ms")
+print(f"  Post-RR interval: {features[1]:.2f} ms")
+print(f"  R-amplitude:      {features[2]:.4f} mV")
+</code></pre>
+
+                    <h4>🖨️ Output</h4>
+                    <pre class="output-box">============================================================
+METHOD 2: HANDCRAFTED FEATURES (MORPHOLOGICAL + TEMPORAL)
+============================================================
+✓ Conversion complete
+  Input:  2237 raw signal segments
+  Output: 2235 segments × 3 features
+  Features: [Pre-RR (ms), Post-RR (ms), R-amplitude (mV)]
+
+📊 Example: Beat #11
+  Pre-RR interval:  838.89 ms
+  Post-RR interval: 855.56 ms
+  R-amplitude:      0.8850 mV
+</pre>
+
+                    <h4>🖼️ Plot (Method 2)</h4>
+                    <div class="plot-container">
+                        <img src="method2.png" alt="Handcrafted Features Plot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <p style="display:none; color: #6c757d;">plot_step3_method2_handcrafted.png (not found)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- METHOD 3 -->
+            <div class="method-box">
+                <div class="method-box-content">
+                    <h3>Method 3: Wavelet Transform</h3>
+                    <p><b>What it is:</b> An advanced technique that breaks the beat's shape into its frequency components to create a "fingerprint" using statistics.</p>
+                    <p class="best-for"><b>Best For: Traditional ML models (like SVM or Random Forest).</b></p>
+                    
+                    <h4>📋 Code (Cell 7)</h4>
+                    <pre class="code-box"><code># Apply Discrete Wavelet Transform
+def extract_wavelet_features(segment, wavelet='db4', level=3):
+    coeffs = pywt.wavedec(segment, wavelet, level=level)
+    features = []
+    
+    # Extract statistics from each level
+    for coeff in coeffs:
+        features.extend([
+            np.mean(coeff),      # Mean
+            np.std(coeff),       # Standard deviation
+            np.max(np.abs(coeff)), # Max absolute value
+            np.sum(coeff**2)     # Energy
+        ])
+    
+    return np.array(features)
+
+method3_features = np.array([extract_wavelet_features(seg) for seg in segments])
+
+print("="*60)
+print("METHOD 3: WAVELET TRANSFORM FEATURES (FREQUENCY ANALYSIS)")
+print("="*60)
+print(f"✓ Conversion complete")
+print(f"  Input:  {len(segments)} raw signal segments")
+print(f"  Output: {method3_features.shape[0]} segments × {method3_features.shape[1]} features")
+print(f"  Wavelet used: Daubechies-4 (db4)")
+print(f"  Decomposition levels: 3")
+print(f"  Features per level: [Mean, Std, Max, Energy] × 4 levels = 16 features")
+
+# Show BEFORE and AFTER
+beat_idx = 10
+fig = plt.figure(figsize=(15, 10))
+gs = fig.add_gridspec(3, 2, hspace=0.3)
+
+# BEFORE: Raw signal
+ax1 = fig.add_subplot(gs[0, :])
+ax1.plot(segments[beat_idx], 'b-', linewidth=2)
+ax1.axvline(x=before_r, color='r', linestyle='--', alpha=0.5, label='R-peak')
+ax1.set_title('BEFORE: Raw Signal Segment', fontweight='bold', fontsize=12)
+ax1.set_xlabel('Sample Index')
+ax1.set_ylabel('Amplitude (mV)')
+ax1.legend()
+ax1.grid(True, alpha=0.3)
+
+# Wavelet decomposition visualization
+coeffs = pywt.wavedec(segments[beat_idx], 'db4', level=3)
+level_names = ['cA3 (Approx)', 'cD3 (Detail)', 'cD2 (Detail)', 'cD1 (Detail)']
+
+for i, (coeff, name) in enumerate(zip(coeffs, level_names)):
+    ax = fig.add_subplot(gs[1 + i//2, i%2])
+    ax.plot(coeff, linewidth=1.5)
+    ax.set_title(f'{name}: {len(coeff)} coefficients', fontsize=10)
+    ax.set_xlabel('Coefficient Index')
+    ax.set_Setting
+    ax.grid(True, alpha=0.3)
+
+plt.suptitle('Wavelet Decomposition (4 levels)', fontweight='bold', fontsize=14, y=0.995)
+plt.tight_layout()
+plt.show()
+
+# AFTER: Extracted features
+fig, axes = plt.subplots(1, 1, figsize=(15, 5))
+features = method3_features[beat_idx]
+feature_labels = []
+for i, level in enumerate(['A3', 'D3', 'D2', 'D1']):
+    feature_labels.extend([f'{level}\nMean', f'{level}\nStd', 
+                            f'{level}\nMax', f'{level}\nEnergy'])
+
+colors = ['#FF6B6B']*4 + ['#4ECDC4']*4 + ['#45B7D1']*4 + ['#95E1D3']*4
+axes.bar(range(len(features)), features, color=colors, alpha=0.7, 
+            edgecolor='black', linewidth=1)
+axes.set_xticks(range(len(features)))
+axes.set_xticklabels(feature_labels, rotation=45, ha='right', fontsize=8)
+axes.set_title('AFTER: Extracted Wavelet Features (16 values)', fontweight='bold')
+axes.set_ylabel('Feature Value')
+axes.grid(True, alpha=0.3, axis='y')
+plt.tight_layout()
+plt.show()
+
+print(f"\n📊 Example: Beat #{beat_idx+1}")
+print(f"  Feature vector: {features[:8]}")  # Show first 8
+print(f"  (Showing first 8 of {len(features)} features)")
+</code></pre>
+
+                    <h4>🖨️ Output</h4>
+                    <pre class="output-box">============================================================
+METHOD 3: WAVELET TRANSFORM FEATURES (FREQUENCY ANALYSIS)
+============================================================
+✓ Conversion complete
+  Input:  2237 raw signal segments
+  Output: 2237 segments × 16 features
+  Wavelet used: Daubechies-4 (db4)
+  Decomposition levels: 3
+  Features per level: [Mean, Std, Max, Energy] × 4 levels = 16 features
+
+📊 Example: Beat #11
+  Feature vector: [-8.79742592e-01  4.50689920e-01  1.70906341e+00  3.22432583e+01
+  3.12630786e-03  7.51023059e-02  3.02783765e-01  1.86454295e-01]
+  (Showing first 8 of 16 features)
+</pre>
+                    
+                    <h4>🖼️ Plots (Method 3)</h4>
+                    <div class="plot-container">
+                        <img src="wavelet_decomposition.png" alt="Wavelet Decomposition Plot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <p style="display:none; color: #6c757d;">plot_step3_method3_decomposition.png (not found)</p>
+                    </div>
+                    <div class="plot-container" style="margin-top: 15px;">
+                        <img src="extracted_wavelet_features.png" alt="Wavelet Features Plot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <p style="display:none; color: #6c757d;">plot_step3_method3_features.png (not found)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================================================== -->
+        <!-- STEP 4: CONCLUSION -->
+        <!-- ====================================================== -->
+        <div class="step" id="step4">
+            <h2>Step 4: Comparison & Conclusion</h2>
+            <p>This table summarizes the trade-offs for each method:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Features per Beat</th>
+                        <th>Description</th>
+                        <th>Best Model Type</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><b>Method 1: Raw Waveform</b></td>
+                        <td>360</td>
+                        <td>Raw voltage values, preserves shape.</td>
+                        <td><b>Deep Learning (CNN / LSTM)</b></td>
+                    </tr>
+                    <tr>
+                        <td><b>Method 2: Handcrafted</b></td>
+                        <td>3</td>
+                        <td>Cardiac timing (RR) and morphology (amplitude).</td>
+                        <td><b>Simple ML / Hybrid Deep Learning</b></td>
+                    </tr>
+                    <tr>
+                        <td><b>Method 3: Wavelet</b></td>
+                        <td>16</td>
+                        <td>Frequency component "fingerprint".</td>
+                        <td><b>Traditional ML (SVM / Random Forest)</b></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h3>Which is the "Best" Method?</h3>
+            <ul>
+                <li><b>For your CNN-LSTM model:</b> Start with <b>Method 1 (Raw Waveform)</b> as your primary input.</li>
+                <li><b>To solve your specific problem (N vs. S):</b> The best approach is a <b>Hybrid Model</b>. You feed the model <u>both</u> <b>Method 1</b> (so the CNN can see the shape) and <b>Method 2</b> (so the LSTM can see the critical timing features) at the same time. This combination is very powerful.</li>
+                <li><b>If you were not using Deep Learning:</b> <b>Method 3 (Wavelet)</b> is often the most accurate for traditional ML.</li>
+            </ul>
+
+            <h4>📋 Code (Cell 8)</h4>
+            <pre class="code-box"><code>import pandas as pd
+
+# Create comparison table
+comparison = pd.DataFrame({
+    'Method': ['Method 1: Raw Waveform', 
+               'Method 2: Handcrafted', 
+               'Method 3: Wavelet'],
+    'Features per Beat': [method1_features.shape[1], 
+                          method2_features.shape[1], 
+                          method3_features.shape[1]],
+    'Total Beats': [method1_features.shape[0], 
+                    method2_features.shape[0], 
+                    method3_features.shape[1]],
+    'Description': ['Raw voltage values (shape preserved)',
+                    'RR-intervals + R-amplitude (timing + morphology)',
+                    'Frequency components (wavelet statistics)'],
+    'Advantages': ['Complete signal information, no information loss',
+                   'Very small, interpretable, captures key cardiac timing',
+                   'Captures frequency patterns, robust to noise'],
+    'Best For': ['Deep learning models (CNNs, RNNs)',
+                 'Simple ML models, real-time processing',
+                 'Traditional ML (SVM, Random Forest)']
+})
+
+print("="*80)
+print("COMPARISON OF ALL THREE METHODS")
+print("="*80)
+print(comparison.to_string(index=False))
+
+# Visualization: Feature count comparison
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+methods = ['Method 1\nRaw Waveform', 'Method 2\nHandcrafted', 'Method 3\nWavelet']
+feature_counts = [method1_features.shape[1], method2_features.shape[1], 
+                  method3_features.shape[1]]
+colors_bar = ['#3498db', '#e74c3c', '#2ecc71']
+
+# Bar chart
+axes[0].bar(methods, feature_counts, color=colors_bar, alpha=0.7, edgecolor='black', linewidth=2)
+axes[0].set_ylabel('Number of Features per Beat', fontweight='bold')
+axes[0].set_title('Feature Dimensionality', fontweight='bold')
+axes[0].grid(True, alpha=0.3, axis='y')
+for i, (m, fc) in enumerate(zip(methods, feature_counts)):
+    axes[0].text(i, fc + 10, str(fc), ha='center', fontweight='bold', fontsize=12)
+
+# Memory usage comparison (approximate)
+memory_mb = [method1_features.nbytes / 1024 / 1024,
+             method2_features.nbytes / 1024 / 1024,
+             method3_features.nbytes / 1024 / 1024]
+
+axes[1].bar(methods, memory_mb, color=colors_bar, alpha=0.7, edgecolor='black', linewidth=2)
+axes[1].set_ylabel('Memory Usage (MB)', fontweight='bold')
+axes[1].set_title('Storage Efficiency', fontweight='bold')
+axes[1].grid(True, alpha=0.3, axis='y')
+for i, (m, mem) in enumerate(zip(methods, memory_mb)):
+    axes[1].text(i, mem + max(memory_mb)*0.02, f'{mem:.3f}', ha='center', 
+                fontweight='bold', fontsize=10)
+
+# Processing complexity (relative scale)
+complexity = [3, 1, 2]  # Relative complexity
+axes[2].bar(methods, complexity, color=colors_bar, alpha=0.7, edgecolor='black', linewidth=2)
+axes[2].set_ylabel('Relative Complexity', fontweight='bold')
+axes[2].set_title('Computational Cost', fontweight='bold')
+axes[2].set_ylim(0, 4)
+axes[2].grid(True, alpha=0.3, axis='y')
+complexity_labels = ['Low', 'Medium', 'High']
+for i, (m, c) in enumerate(zip(methods, complexity)):
+    axes[2].text(i, c + 0.1, complexity_labels[c-1], ha='center', 
+                fontweight='bold', fontsize=10)
+
+plt.tight_layout()
+plt.show()
+
+print("\n" + "="*80)
+print("✓ All preprocessing methods completed successfully!")
+print("="*80)
+</code></pre>
+
+            <h4>🖨️ Output</h4>
+            <pre class="output-box">================================================================================
+COMPARISON OF ALL THREE METHODS
+================================================================================
+                Method  Features per Beat  Total Beats                                      Description                                             Advantages                               Best For
+Method 1: Raw Waveform                360         2237             Raw voltage values (shape preserved)       Complete signal information, no information loss      Deep learning models (CNNs, RNNs)
+ Method 2: Handcrafted                  3         2235 RR-intervals + R-amplitude (timing + morphology) Very small, interpretable, captures key cardiac timing Simple ML models, real-time processing
+     Method 3: Wavelet                 16           16        Frequency components (wavelet statistics)           Captures frequency patterns, robust to noise    Traditional ML (SVM, Random Forest)
+</pre>
+
+            <h4>🖼️ Plot (Step 4)</h4>
+            <div class="plot-container">
+                <img src="comaprison.png" alt="Comparison Plot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <p style="display:none; color: #6c757d;">plot_step4_comparison.png (not found)</p>
+            </div>
+        </div>
+
+        <!-- ====================================================== -->
+        <!-- NEW STEP 5: ARCHITECTURE DIAGRAM -->
+        <!-- ====================================================== -->
+        <div class="step" id="step5">
+            <h2>Step 5: Workflow Architecture Diagram</h2>
+            <p>This diagram illustrates the complete data processing pipeline, from loading the initial record to segmenting the beats and applying the three distinct feature extraction methodologies.</p>
+            
+            <h3>🖼️ Workflow Diagram</h3>
+            <div class="plot-container">
+                <!-- 
+                  INSTRUCTION: 
+                  1. Export your diagram as 'workflow_diagram.png'
+                  2. Put it in the SAME FOLDER as this HTML file.
+                -->
+                <img src="archi.PNG" alt="Workflow Architecture Diagram" style="background-color: #fff;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <p style="display:none; color: #6c757d;">workflow_diagram.png (not found)</p>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
