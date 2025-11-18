@@ -24,10 +24,11 @@ ecg-arrhythmia-classifier/
 │
 ├── docs/
 │   ├── report.html            # Detailed HTML report of the workflow
-│   └── workflow_diagram.md    # Mermaid code for the architecture diagram
+│   ├── workflow_diagram.md    # Mermaid code for the architecture diagram
+│   └── images/                # Images for the HTML report
 │
-└── src/
-    └── 01_preprocessing.py    # Main Python script for all preprocessing steps
+├── notebooks/
+   └── 01_preprocessing.ipynb # Interactive Jupyter notebook with visualizations
 ```
 
 ---
