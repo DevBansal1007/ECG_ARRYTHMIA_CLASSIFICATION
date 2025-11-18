@@ -21,4 +21,12 @@ report_images/
 
 # IDE config files
 .vscode/
+
 .idea/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# OS files
+.DS_Store
+Thumbs.db
