@@ -58,12 +58,16 @@ pip install -r requirements.txt
 
 ## 4. How to Run the Preprocessing
 
-The main workflow is contained in the `src/01_preprocessing.py` script. This script will automatically download the required record from the PhysioNet database, process it, and save all output plots to a new `report_images/` directory (which is ignored by Git).
+### Option A: Using Jupyter Notebook (Interactive)
 
-### To run the script for Record 100:
+1. Launch Jupyter:
 ```bash
-python src/01_preprocessing.py --record 100
+   jupyter notebook
 ```
+
+2. Open `notebooks/ecg-preprocessing-work.ipynb`
+
+3. Run all cells or execute step-by-step
 
 This will:
 
