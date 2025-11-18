@@ -1,0 +1,24 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.venv/
+
+# Environment variables
+.env
+
+# Data files - DO NOT COMMIT RAW DATA
+*.dat
+*.atr
+*.hea
+*.csv
+
+# Output images
+report_images/
+
+# IDE config files
+.vscode/
+.idea/
