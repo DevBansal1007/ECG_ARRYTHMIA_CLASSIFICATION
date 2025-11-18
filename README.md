@@ -77,7 +77,7 @@ This will:
 
    A full, interactive HTML report describing the entire workflow, comparing the three feature extraction methods, and visualizing the data is available.
 
-   **View the live report here:** [ECG Preprocessing Report](https://your-username.github.io/ecg-arrhythmia-classifier/report.html)
+   **View the live report here:** [ECG Preprocessing Report](https://devbansal1007.github.io/ECG_ARRYTHMIA_CLASSIFICATION/report.html) 
 
 ---
 
