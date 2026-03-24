@@ -2,38 +2,82 @@
 
 ## 1. Project Overview
 
-This repository contains the complete data processing and feature extraction pipeline (Phase 1) for an advanced ECG-based arrhythmia classification project. The primary goal of this project is to build a deep learning model capable of accurately classifying heartbeat anomalies.
+This repository contains a complete, end-to-end pipeline for Electrocardiogram (ECG) arrhythmia classification using the MIT-BIH Arrhythmia Database. The primary objective is to develop a "safety-first" diagnostic framework that prioritizes the detection of life-threatening anomalies over simple global accuracy.
 
-A key challenge in this domain is the high morphological similarity between certain beat types, such as:
+A major challenge in automated ECG analysis is the high morphological similarity between different beats, combined with extreme class imbalance. Traditional models often achieve high overall accuracy by defaulting to the majority "Normal" class, critically missing rare fatal arrhythmias like **Fusion (F)** and **Ventricular (V) beats**.
 
-- **Normal (N)** and **Supraventricular Ectopic (S)** beats
-- **Ventricular Ectopic (V)** and **Fusion (F)** beats
-
-This preprocessing phase is designed to load, segment, and transform raw ECG signals into multiple feature-rich formats, providing a robust foundation for building and testing advanced classification models (like hybrid CNN-LSTMs) in Phase 2.
+To solve this, we developed a Multimodal Hybrid CNN-LSTM architecture. By fusing raw 1D physical waveforms with handcrafted temporal markers (RR-intervals) and spectral frequencies (Discrete Wavelet Transform), this model successfully captures complex cardiac patterns. Furthermore, this project utilizes a strict inter-patient data split, ensuring zero patient data leakage and proving the model's reliability on completely unseen patients.
 
 ---
 
 ## 2. Repository Structure
 ```
-ecg-arrhythmia-classifier/
-│
-├── .gitignore                 # Tells Git which files to ignore
-├── LICENSE                    # Project license (MIT)
-├── README.md                  # This file
-├── requirements.txt           # Python libraries needed to run the code
-│
-├── docs/
-│   ├── report.html            # Detailed HTML report of the workflow
-│   ├── workflow_diagram.md    # Mermaid code for the architecture diagram
-│   └── images/                # Images for the HTML report
-│
+ecg-arrhythmia-classification/
+├── data/
+│   ├── raw/                  
+│   └── processed/            
+├── models/                   
 ├── notebooks/
-   └── 01_preprocessing.ipynb # Interactive Jupyter notebook with visualizations
+│   ├── 01_data_preprocessing.ipynb
+│   ├── 02_baseline_ml_models.ipynb
+│   └── 03_hybrid_dl_architecture.ipynb
+├── workflow_diagram.md       
+├── visuals/                  
+├── .gitignore                
+├── README.md                 
+└── requirements.txt          
 ```
 
 ---
+## 3. Key Results & Performance
 
-## 3. Setup and Installation
+The models were evaluated across **five AAMI clinical classes**:
+- Normal (**N**)  
+- Supraventricular (**S**)  
+- Ventricular (**V**)  
+- Fusion (**F**)  
+- Unknown (**Q**)  
+
+---
+
+### 🏆 Key Results
+
+#### 1. Strong Overall Performance
+- Achieved an **overall accuracy of 83.12%**
+- Outperformed traditional ensemble models like **XGBoost (80.7%)**
+
+#### 2. High Detection of Critical Arrhythmias
+- **Ventricular (V) Recall: 88.0%**
+- Demonstrates strong capability in detecting **life-threatening cardiac events**
+
+#### 3. Rare Class Detection Breakthrough
+- **Fusion (F) Recall: 19.0%**
+- The **only model** capable of detecting this extremely rare class  
+- Significant improvement over baseline models (which had near-zero detection)
+
+---
+
+### 📊 Performance Summary
+
+| Metric | Value |
+|--------|------|
+| **Overall Accuracy** | **83.12%** |
+| **Ventricular (V) Recall** | **88.0%** |
+| **Fusion (F) Recall** | **19.0%** |
+
+---
+
+### 🔍 Comparative Insight
+
+| Model | Accuracy | Rare Class Detection |
+|------|--------|---------------------|
+| XGBoost | 80.7% | ❌ Poor |
+| Random Forest | ~78% | ❌ Poor |
+| Hybrid CNN-LSTM | **83.12%** | ✅ Strong |
+
+---
+
+## 4. Setup and Installation
 
 To set up this project locally, follow these steps:
 
@@ -53,57 +97,69 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```bash
 pip install -r requirements.txt
 ```
-
----
-
-## 4. How to Run the Preprocessing
-
-### Option A: Using Jupyter Notebook (Interactive)
-
-1. Launch Jupyter:
+## 5. Usage & Workflow
+### 📌 Phase 1: Data Preprocessing
 ```bash
-   jupyter notebook
+notebooks/01_data_preprocessing.ipynb
+
 ```
+This step will:
 
-2. Open `notebooks/ecg-preprocessing-work.ipynb`
+- Download the **MIT-BIH records**
+- Extract **R-peaks**
+- Apply feature extraction methods:
+  - Raw Resampling  
+  - Handcrafted RR-intervals  
+  - db4 Wavelet Transforms  
 
-3. Run all cells or execute step-by-step
+📁 **Output:** Saved as a unified `.npz` file
+### Phase 2: Model Training & Evaluation
+```bash
+notebooks/02_model_training.ipynb
+```
+This step will:
 
-This will:
+- Apply **GroupShuffleSplit (patient-wise split)**
+- Use **class weighting strategies**
+- Train deep learning models  
+- Automatically generate:
+  - Evaluation metrics  
+  - Confusion matrices  
+  - ROC curves  
+---
+## 6. Architecture Highlights
 
-- Download record '100' from the MIT-BIH database
-- Filter, segment, and process all 'N' (Normal) beats
-- Perform all three feature extraction methods
-- Save all 7 plots (e.g., `plot_step1_raw_signal.png`, `plot_step3_method1_resample.png`, etc.) into a folder named `report_images/`
+### 🧠 Algorithm: Multimodal Hybrid CNN-LSTM
 
+#### 🔹 CNN Branch
+- Extracts **spatial features**  
+- Learns morphological patterns from **360-sample ECG waveform**
+
+#### 🔹 LSTM Branch
+- Captures **temporal dependencies**  
+- Models sequential rhythm patterns  
+
+#### 🔹 Feature Fusion
+- Combines:
+  - CNN + LSTM outputs  
+  - Handcrafted RR features  
+  - Wavelet-based features  
+
+➡️ **Final feature vector:** 379 features  
+
+#### 🔹 Classification Layer
+- Fully connected dense layers  
+- Dropout regularization  
+- Outputs **softmax probabilities** across 5 classes  
 ---
 
-## 5. Detailed Report
+## 7. Data Source & Citation
 
-   A full, interactive HTML report describing the entire workflow, comparing the three feature extraction methods, and visualizing the data is available.
+This project uses the **MIT-BIH Arrhythmia Database** from PhysioNet.
 
-   **View the live report here:** [ECG Preprocessing Report](https://devbansal1007.github.io/ECG_ARRYTHMIA_CLASSIFICATION/report.html) 
-
----
-
-## 6. Data Source
-
-This project uses the **MIT-BIH Arrhythmia Database**. This data is provided by PhysioNet and must be cited correctly.
-
-### Citation:
-
-> Goldberger, A., Amaral, L., Glass, L., Hausdorff, J., Ivanov, P. C., Mark, R., ... & Stanley, H. E. (2000). PhysioBank, PhysioToolkit, and PhysioNet: Components of a new research resource for complex physiologic signals. *Circulation* [Online]. 101 (23), pp. e215–e220.
-
----
-
-## 7. Phase 2: Future Work
-
-This repository (Phase 1) successfully prepares the data. The next phase of the project will focus on:
-
-- **Full Dataset Processing:** Scaling the `01_preprocessing.py` script to process all 48 records from the MIT-BIH database
-- **Class Imbalance:** Implementing strategies (e.g., SMOTE, class weights) to handle the severe class imbalance
-- **Model Development:** Building a hybrid CNN-LSTM model that uses a multi-input architecture (Method 1 + Method 2 features)
-- **Training & Evaluation:** Training the model and using advanced metrics (F1-score, Precision, Recall, Confusion Matrix) to evaluate its performance, especially on the difficult 'S' and 'F' classes
+> Goldberger, A., Amaral, L., Glass, L., Hausdorff, J., Ivanov, P. C., Mark, R., ... & Stanley, H. E. (2000).  
+> *PhysioBank, PhysioToolkit, and PhysioNet: Components of a new research resource for complex physiologic signals.*  
+> **Circulation**, 101(23), e215–e220.
 
 ---
 
