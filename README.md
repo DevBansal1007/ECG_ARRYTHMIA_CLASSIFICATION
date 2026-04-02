@@ -97,6 +97,15 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```bash
 pip install -r requirements.txt
 ```
+
+## Compute Environment & Hardware
+
+Due to the computational complexity of the Multimodal Hybrid CNN-LSTM, this project was developed and trained using **Google Colab** to leverage cloud-based hardware acceleration.
+
+* **Compute:** Cloud-based GPU (NVIDIA T4 / Tesla P100)
+* **Environment:** Google Colab Notebooks
+* **Deep Learning Backend:** TensorFlow / Keras
+  
 ## 5. Usage & Workflow
 ### 📌 Phase 1: Data Preprocessing
 ```bash
