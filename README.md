@@ -1,4 +1,4 @@
-# ECG Arrhythmia Classification - Phase 1: Preprocessing
+# ECG Arrhythmia Classification 
 
 ## 1. Project Overview
 
