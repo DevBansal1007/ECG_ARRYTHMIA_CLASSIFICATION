@@ -1,32 +1,21 @@
-# Python cache
 __pycache__/
 *.py[cod]
-*$py.class
-
-# Virtual environment
+.ipynb_checkpoints/
 venv/
-.venv/
-
-# Environment variables
+env/
 .env
-
-# Data files - DO NOT COMMIT RAW DATA
+.DS_Store
+Thumbs.db
+*.npz
 *.dat
 *.atr
 *.hea
-*.csv
-
-# Output images
-report_images/
-
-# IDE config files
-.vscode/
-
-.idea/
-
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints
-
-# OS files
-.DS_Store
-Thumbs.db
+*.pkl
+*.h5
+*.keras
+models/*
+!models/.gitkeep
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
