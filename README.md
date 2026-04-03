@@ -19,8 +19,7 @@ ecg-arrhythmia-classification/
 ├── models/                   
 ├── notebooks/
 │   ├── 01_data_preprocessing.ipynb
-│   ├── 02_baseline_ml_models.ipynb
-│   └── 03_hybrid_dl_architecture.ipynb
+│   └──  02_ml_models.ipynb
 ├── workflow_diagram.md       
 ├── visuals/                  
 ├── .gitignore                
